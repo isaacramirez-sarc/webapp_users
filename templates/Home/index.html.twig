@@ -1,0 +1,301 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Home{% endblock %}
+
+{% block body %}
+<div class="container mt-4">
+    <h1>Dashboard</h1>
+
+    <!-- Fila de controles -->
+    <div class="row mb-4">
+        <!-- Control de fechas -->
+        <div class="col-md-4">
+            <div class="form-group">
+                <label for="start-date">Start Date:</label>
+                <input type="date" id="start-date" class="form-control">
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="form-group">
+                <label for="end-date">End Date:</label>
+                <input type="date" id="end-date" class="form-control">
+            </div>
+        </div>
+        <div class="col-md-4 d-flex align-items-end">
+            <button id="load-processes" class="btn btn-primary w-100">Load Processes</button>
+        </div>
+    </div>
+
+    <!-- Header Process Dropdown (oculto por defecto) -->
+    <div id="process-dropdown" class="row mb-4 d-none">
+        <div class="col-md-12">
+            <h2>Processes</h2>
+            <select id="processes" class="form-select">
+                <option value="">--Select Process--</option>
+            </select>
+        </div>
+    </div>
+
+    <!-- Gráficos -->
+    <div class="row mb-4">
+        <div class="col-md-6 mb-4">
+            <h2>Gender Distribution</h2>
+            <canvas id="genderChart" style="max-height: 500px;"></canvas>
+        </div>
+        <div class="col-md-6 mb-4">
+            <h2>User Role Distribution</h2>
+            <canvas id="roleChart" style="max-height: 500px;"></canvas>
+        </div>
+    </div>
+
+    <!-- Tabla de detalles -->
+    <div class="row">
+        <div class="col-12">
+            <h2>Details</h2>
+            <div id="details">
+                <table id="detailTable" class="table table-bordered table-responsive">
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>First Name</th>
+                            <th>Last Name</th>
+                            <th>Maiden Name</th>
+                            <th>Age</th>
+                            <th>Gender</th>
+                            <th>Email</th>
+                            <th>Phone</th>
+                            <th>Username</th>
+                            <th>Birth Date</th>
+                            <th>Image</th>
+                            <th>Blood Group</th>
+                            <th>Height</th>
+                            <th>Weight</th>
+                            <th>Eye Color</th>
+                            <th>Hair Color</th>
+                            <th>Hair Type</th>
+                            <th>IP</th>
+                            <th>Address</th>
+                            <th>City</th>
+                            <th>State</th>
+                            <th>State Code</th>
+                            <th>Postal Code</th>
+                            <th>Country</th>
+                            <th>MAC Address</th>
+                            <th>University</th>
+                            <th>Bank Details</th>
+                            <th>Company Details</th>
+                            <th>EIN</th>
+                            <th>SSN</th>
+                            <th>User Agent</th>
+                            <th>Crypto Details</th>
+                            <th>Role</th>
+                        </tr>
+                    </thead>
+                    <tbody></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+    $(document).ready(function() {
+        // Cargar procesos al hacer clic en el botón
+        $('#load-processes').click(function() {
+            var startDate = $('#start-date').val();
+            var endDate = $('#end-date').val();
+
+            if (startDate && endDate) {
+                $.getJSON('/header-processes', { startDate: startDate, endDate: endDate }, function(data) {
+                    $('#process-dropdown').removeClass('d-none'); // Mostrar la sección de dropdown
+
+                    $('#processes').empty().append($('<option>', { value: '', text: '--Select Process--' }));
+                    $.each(data, function(key, process) {
+                        $('#processes').append($('<option>', { value: process.id, text: 'Process on ' + process.executionDate }));
+                    });
+                });
+            } else {
+                alert('Please select a start and end date');
+            }
+        });
+
+        // Cargar detalles al seleccionar un proceso
+        $('#processes').change(function() {
+            var headerProcessId = $(this).val();
+            if (headerProcessId) {
+                $.getJSON('/details/' + headerProcessId, function(data) {
+                    var tbody = $('#detailTable tbody');
+                    tbody.empty();
+                    var genderCounts = { male: 0, female: 0, other: 0 };
+                    var roleCounts = {};
+
+                    $.each(data, function(key, detail) {
+                        var row = '<tr>' +
+                            '<td>' + detail.id + '</td>' +
+                            '<td>' + detail.firstName + '</td>' +
+                            '<td>' + detail.lastName + '</td>' +
+                            '<td>' + detail.maidenName + '</td>' +
+                            '<td>' + detail.age + '</td>' +
+                            '<td>' + detail.gender + '</td>' +
+                            '<td>' + detail.email + '</td>' +
+                            '<td>' + detail.phone + '</td>' +
+                            '<td>' + detail.username + '</td>' +
+                            '<td>' + detail.birthDate + '</td>' +
+                            '<td><img src="' + detail.image + '" alt="User Image" width="50"></td>' +
+                            '<td>' + detail.bloodGroup + '</td>' +
+                            '<td>' + detail.height + '</td>' +
+                            '<td>' + detail.weight + '</td>' +
+                            '<td>' + detail.eyeColor + '</td>' +
+                            '<td>' + detail.hairColor + '</td>' +
+                            '<td>' + detail.hairType + '</td>' +
+                            '<td>' + detail.ip + '</td>' +
+                            '<td>' + detail.address + '</td>' +
+                            '<td>' + detail.city + '</td>' +
+                            '<td>' + detail.state + '</td>' +
+                            '<td>' + detail.stateCode + '</td>' +
+                            '<td>' + detail.postalCode + '</td>' +
+                            '<td>' + detail.country + '</td>' +
+                            '<td>' + detail.macAddress + '</td>' +
+                            '<td>' + detail.university + '</td>' +
+                            '<td>' +
+                                'Card Number: ' + detail.bankDetails.cardNumber + '<br>' +
+                                'Card Expire: ' + detail.bankDetails.cardExpire + '<br>' +
+                                'Card Type: ' + detail.bankDetails.cardType + '<br>' +
+                                'Currency: ' + detail.bankDetails.currency + '<br>' +
+                                'IBAN: ' + detail.bankDetails.iban +
+                            '</td>' +
+                            '<td>' +
+                                'Company: ' + detail.companyDetails.company + '<br>' +
+                                'Department: ' + detail.companyDetails.department + '<br>' +
+                                'Title: ' + detail.companyDetails.title + '<br>' +
+                                'Company Address: ' + detail.companyDetails.companyAddress +
+                            '</td>' +
+                            '<td>' + detail.ein + '</td>' +
+                            '<td>' + detail.ssn + '</td>' +
+                            '<td>' + detail.userAgent + '</td>' +
+                            '<td>' +
+                                'Coin: ' + detail.cryptoDetails.coin + '<br>' +
+                                'Wallet: ' + detail.cryptoDetails.wallet + '<br>' +
+                                'Network: ' + detail.cryptoDetails.network +
+                            '</td>' +
+                            '<td>' + detail.role + '</td>' +
+                            '</tr>';
+                        tbody.append(row);
+
+                        // Contar géneros
+                        if (detail.gender === 'male') {
+                            genderCounts.male++;
+                        } else if (detail.gender === 'female') {
+                            genderCounts.female++;
+                        } else {
+                            genderCounts.other++;
+                        }
+
+                        // Contar roles
+                        if (!roleCounts[detail.role]) {
+                            roleCounts[detail.role] = 0;
+                        }
+                        roleCounts[detail.role]++;
+                    });
+
+                    // Actualizar gráfico de distribución de géneros
+                    var genderCtx = document.getElementById('genderChart').getContext('2d');
+                    new Chart(genderCtx, {
+                        type: 'pie',
+                        data: {
+                            labels: ['Male', 'Female', 'Other'],
+                            datasets: [{
+                                label: 'Gender Distribution',
+                                data: [genderCounts.male, genderCounts.female, genderCounts.other],
+                                backgroundColor: [
+                                    'rgba(75, 192, 192, 0.2)',
+                                    'rgba(255, 99, 132, 0.2)',
+                                    'rgba(255, 206, 86, 0.2)'
+                                ],
+                                borderColor: [
+                                    'rgba(75, 192, 192, 1)',
+                                    'rgba(255, 99, 132, 1)',
+                                    'rgba(255, 206, 86, 1)'
+                                ],
+                                borderWidth: 1
+                            }]
+                        },
+                        options: {
+                            responsive: true,
+                            plugins: {
+                                legend: {
+                                    position: 'top',
+                                },
+                                tooltip: {
+                                    callbacks: {
+                                        label: function(context) {
+                                            let label = context.label || '';
+                                            if (context.parsed !== null) {
+                                                let value = context.parsed;
+                                                let total = context.chart._data.datasets[0].data.reduce((a, b) => a + b, 0);
+                                                let percentage = Math.round((value / total) * 100);
+                                                label += ': ' + value + ' (' + percentage + '%)';
+                                            }
+                                            return label;
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    });
+
+                    // Actualizar gráfico de distribución de roles
+                    var roleCtx = document.getElementById('roleChart').getContext('2d');
+                    new Chart(roleCtx, {
+                        type: 'pie',
+                        data: {
+                            labels: Object.keys(roleCounts),
+                            datasets: [{
+                                label: 'Role Distribution',
+                                data: Object.values(roleCounts),
+                                backgroundColor: [
+                                    'rgba(153, 102, 255, 0.2)',
+                                    'rgba(255, 159, 64, 0.2)',
+                                    'rgba(255, 99, 132, 0.2)'
+                                    // Add more colors if needed
+                                ],
+                                borderColor: [
+                                    'rgba(153, 102, 255, 1)',
+                                    'rgba(255, 159, 64, 1)',
+                                    'rgba(255, 99, 132, 1)'
+                                    // Add more border colors if needed
+                                ],
+                                borderWidth: 1
+                            }]
+                        },
+                        options: {
+                            responsive: true,
+                            plugins: {
+                                legend: {
+                                    position: 'top',
+                                },
+                                tooltip: {
+                                    callbacks: {
+                                        label: function(context) {
+                                            let label = context.label || '';
+                                            if (context.parsed !== null) {
+                                                let value = context.parsed;
+                                                let total = context.chart._data.datasets[0].data.reduce((a, b) => a + b, 0);
+                                                let percentage = Math.round((value / total) * 100);
+                                                label += ': ' + value + ' (' + percentage + '%)';
+                                            }
+                                            return label;
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    });
+                });
+            }
+        });
+    });
+</script>
+{% endblock %}
